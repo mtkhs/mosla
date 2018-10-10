@@ -14,7 +14,7 @@ class SlackPlugin():
     def username( self ):
         return self.self_info()[ 'name' ]
 
-    def on_server_connected( self ):
+    def on_server_connect( self ):
         pass
 
     def on_message( self, user, channel, message ):

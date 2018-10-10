@@ -64,9 +64,9 @@ class SlackBot():
     def on_message_changed( self, channel, user, message, prev_user, prev_message ):
         pass
 
-    def on_server_connected( self ):
+    def on_server_connect( self ):
         for plugin in self.plugin_instances:
-            plugin.on_server_connected()
+            plugin.on_server_connect()
 
     def on_raw( self, line ):
         for plugin in self.plugin_instances:
@@ -82,7 +82,7 @@ class SlackBot():
 
     def process_message( self, item ):
         if 'subtype' in item:
-            if subtype == 'message_changed':
+            if item[ 'subtype' ] == 'message_changed':
                 self.process_message_changed( item )
         else:
             user = self.users_list[ item[ 'user' ] ]
@@ -98,11 +98,6 @@ class SlackBot():
         for item in line:
             self.process_item( item )
 
-    def on_rtm_connect( self ):
-        self.update_users_list()
-        self.update_channels_list()
-        self.on_server_connected()
-
     def rtm_read_loop( self ):
         while self.sc.server.connected:
             line = self.sc.rtm_read()
@@ -114,7 +109,9 @@ class SlackBot():
     def start( self ):
         self.load_plugins()
         if self.sc.rtm_connect():
-            self.on_rtm_connect()
+            self.update_users_list()
+            self.update_channels_list()
+            self.on_server_connect()
             self.rtm_read_loop()
         else:
             print( "Connection Failed" )
