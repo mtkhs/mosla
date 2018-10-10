@@ -8,9 +8,10 @@ from slacklib.slack_channel import SlackChannel
 
 class SlackBot():
 
-    def __init__( self, token, plugins_path = "plugins" ):
+    def __init__( self, token, plugins_path = "plugins", rtm_interval = 1 ):
         self.sc = SlackClient( token )
         self.plugins_path = plugins_path
+        self.rtm_interval = rtm_interval
         self.plugin_modules = []
         self.plugin_classes = []
         self.plugin_instances = []
@@ -71,34 +72,49 @@ class SlackBot():
         for plugin in self.plugin_instances:
             plugin.on_raw( line )
 
+    def process_message_changed( self, item ):
+        channel = item[ 'channel' ]
+        user = self.users_list[ item[ 'message' ][ 'user' ] ]
+        message = item[ 'message' ][ 'text' ]
+        prev_user = item[ 'previous_message' ][ 'user' ]
+        prev_message = item[ 'previous_message' ][ 'text' ]
+        self.on_message_changed( channel, user, message, prev_user, prev_message )
+
+    def process_message( self, item ):
+        if 'subtype' in item:
+            if subtype == 'message_changed':
+                self.process_message_changed( item )
+        else:
+            user = self.users_list[ item[ 'user' ] ]
+            channel = item[ 'channel' ]
+            message = item[ 'text' ]
+            self.on_message( user, channel, message )
+
+    def process_item( self, item ):
+        if item[ 'type' ] == 'message':
+            self.process_message( item )
+
+    def process_line( self, line ):
+        for item in line:
+            self.process_item( item )
+
+    def on_rtm_connect( self ):
+        self.update_users_list()
+        self.update_channels_list()
+        self.on_server_connected()
+
+    def rtm_read_loop( self ):
+        while self.sc.server.connected:
+            line = self.sc.rtm_read()
+            if 0 < len( line ):
+                self.process_line( line )
+                self.on_raw( line )
+            time.sleep( self.rtm_interval )
+
     def start( self ):
         self.load_plugins()
         if self.sc.rtm_connect():
-            self.update_users_list()
-            self.update_channels_list()
-            self.on_server_connected()
-            while self.sc.server.connected is True:
-                line = self.sc.rtm_read() # JSON format
-                if 0 < len( line ):
-                    self.on_raw( line )
-                    for item in line:
-                        type = item[ 'type' ]
-                        if type == 'message':
-                            if 'subtype' in item:
-                                if item[ 'subtype' ] == 'message_changed':
-                                    channel = item[ 'channel' ]
-                                    user = self.users_list[ item[ 'message' ][ 'user' ] ]
-                                    message = item[ 'message' ][ 'text' ]
-                                    prev_user = item[ 'previous_message' ][ 'user' ]
-                                    prev_message = item[ 'previous_message' ][ 'text' ]
-                                    self.on_message_changed( channel, user, message, prev_user, prev_message )
-                            else:
-                                # Normal message
-                                user = self.users_list[ item[ 'user' ] ]
-                                channel = item[ 'channel' ]
-                                message = item[ 'text' ]
-                                self.on_message( user, channel, message )
-
-                time.sleep(0.1)
+            self.on_rtm_connect()
+            self.rtm_read_loop()
         else:
             print( "Connection Failed" )
