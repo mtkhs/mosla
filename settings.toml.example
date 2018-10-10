@@ -1,0 +1,7 @@
+[slack]
+api_token = "xxxx-000000000000000000000000000000000000"
+
+[bot]
+rtm_interval = 1
+plugins_dir = "plugins"
+
