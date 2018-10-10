@@ -1,6 +1,6 @@
 # Mosla: Slack Bot program
 
-* Written by Python.
+* Written in Python.
 * Easy to create your plugin with Python.
 
 ## How to start
