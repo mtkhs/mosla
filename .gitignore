@@ -1,4 +1,6 @@
 settings.toml
+/log/*
+!/log/.gitkeep
 
 # pyenv
 .python-version

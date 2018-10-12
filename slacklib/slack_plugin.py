@@ -1,18 +1,28 @@
 
 class SlackPlugin():
 
-    def __init__( self, slackClient, name ):
-        self.sc = slackClient
+    def __init__( self, bot, name ):
+        self.bot = bot
         self.name = name
 
-    def self_info( self ):
-        return self.sc.server.login_data[ 'self' ]
+    def is_mention_to_me( self, message ):
+        return message.startswith( "<@" + self.bot.self_id() + ">" )
 
-    def userid( self ):
-        return self.self_info()[ 'id' ]
+    def is_mention_message( self, message ):
+        return message.startswith( "<@" )
 
-    def username( self ):
-        return self.self_info()[ 'name' ]
+    def parse_mention_text( self, text ):
+        user, message = text.split( " ", 1 )
+        user = self.bot.users_list[ user[ 2 : -1 ] ]
+        return ( user, message )
+
+    def send_message( self, channel, message ):
+        self.bot.send_message( channel, message )
+
+    def send_mention_message( self, channel, user, message ):
+        self.bot.send_mention_message( channel, user, message )
+
+    # abstract methods
 
     def on_server_connect( self ):
         pass
@@ -20,9 +30,14 @@ class SlackPlugin():
     def on_message( self, user, channel, message ):
         pass
 
-    def on_raw( self, line ):
+    def on_message_changed( self, channel, user, message, prev_user, prev_message ):
         pass
 
-    def send_message( self, channel, message ):
-        self.sc.api_call( "chat.postMessage", channel = channel, text = message, as_user = True )
+    def on_joined( self, channel, user ):
+        pass
 
+    def on_left( self, channel, user ):
+        pass
+
+    def on_raw( self, line ):
+        pass
