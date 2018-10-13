@@ -27,16 +27,16 @@ class SlackBot():
             if filename.endswith('.py'):
                 if filename == "__init__.py":
                     continue
-                klassName = os.path.splitext( filename )[ 0 ]
-                klassName = klassName[ 0 ].upper() + klassName[ 1: ]
+                klass_name = os.path.splitext( filename )[ 0 ]
+                klass_name = klass_name[ 0 ].upper() + klass_name[ 1: ]
                 modulePath =  self.plugins_path + '/' + filename
                 cpath = os.path.splitext( modulePath )[ 0 ].replace( os.path.sep, '.' )
                 try:
                     mod = importlib.import_module( cpath )
                     self.plugin_modules.append( mod )
-                    klass = getattr( mod, klassName )
+                    klass = getattr( mod, klass_name )
                     self.plugin_classes.append( klass )
-                    self.plugin_instances.append( klass( self, klassName ) )
+                    self.plugin_instances.append( klass( self, klass_name ) )
                 except ModuleNotFoundError:
                     print('Module not found')
                 except AttributeError:

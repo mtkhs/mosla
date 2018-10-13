@@ -22,11 +22,29 @@ class Logger( SlackPlugin ):
         line = timestamp + " #" + channel.name + " " + user.name + " > " + self.normalize_text( message )
         return line
 
-    def normalize_mention( self, text ):
+    def normalize_date( self, text ):
+        return text
+
+    def normalize_special_command( self, text ):
+        mention_pattern = re.compile( r'<!(channel|here|everyone)>' )
+        for match in mention_pattern.finditer( text ):
+            text = text.replace( match.group( 0 ), "@" + match.group( 1 ) )
+        return text
+
+    def normalize_user_group( self, text ):
+        return text
+
+    def normalize_user( self, text ):
         mention_pattern = re.compile( r'<@([UW][0-9A-Z]{8})>' )
         for match in mention_pattern.finditer( text ):
             user = self.bot.users_list[ match.group( 1 ) ]
             text = text.replace( match.group( 0 ), "@" + user.name )
+        return text
+
+    def normalize_channel( self, text ):
+        mention_pattern = re.compile( r'<#(C[0-9A-Z]{8})\|([^>]+)>' )
+        for match in mention_pattern.finditer( text ):
+            text = text.replace( match.group( 0 ), "#" + match.group( 2 ) )
         return text
 
     def normalize_url( self, text ):
@@ -41,7 +59,9 @@ class Logger( SlackPlugin ):
         return text
 
     def normalize_text( self, text ):
-        text = self.normalize_mention( text )
+        text = self.normalize_user( text )
+        text = self.normalize_channel( text )
+        text = self.normalize_special_command( text )
         text = self.normalize_url( text )
         text = text.replace( '&amp;', '&' ).replace( '&lt;', '<' ).replace( '&gt;', '>' )
         return text
