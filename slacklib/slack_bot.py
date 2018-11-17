@@ -8,7 +8,13 @@ from slacklib import SlackChannel
 
 class SlackBot():
 
-    def __init__( self, token, plugins_path = "plugins", rtm_interval = 1 ):
+    def __init__( self, setting ):
+        token = setting[ 'slack' ][ 'api_token' ]
+        plugins_path = setting[ 'bot' ][ 'plugins_dir' ]
+        rtm_interval = setting[ 'bot' ][ 'rtm_interval' ]
+        plugins_setting = setting[ 'plugins' ]
+
+        self.plugins_setting = plugins_setting
         self.sc = SlackClient( token )
         self.plugins_path = plugins_path
         self.rtm_interval = rtm_interval
@@ -18,9 +24,17 @@ class SlackBot():
         self.users_list = {} # [ 'id' ] => SlackUser
         self.channels_list = {}
 
-# plugin loader
+    # plugin loader
 
     def load_plugins( self ):
+        for ps in self.plugins_setting:
+            mod = importlib.import_module( ps[ 'module' ] )
+            klass_name = ps[ 'name' ]
+            klass = getattr( mod, klass_name )
+            self.plugin_classes.append( klass )
+            self.plugin_instances.append( klass( self, ps ) )
+
+    def load_plugins_filename_based( self ):
         plugins_dir = os.listdir( self.plugins_path )
         current_dir = os.path.dirname( os.path.abspath( __file__ ) )
         for filename in plugins_dir:
@@ -43,11 +57,21 @@ class SlackBot():
                     print('Method not found')
 
     def unload_plugins( self ):
-        pass
+        for ins in self.plugin_instances:
+            del( ins )
+        self.plugin_instances = []
+
+        for cls in self.plugin_classes:
+            del( cls )
+        self.plugin_classes = []
+
+        for mod in self.plugin_modules:
+            del( mod )
+        self.plugin_modules = []
 
     def reload_plugins( self ):
-        unload_plugins()
-        load_plugins()
+        self.unload_plugins()
+        self.load_plugins()
 
     # bot information
 
@@ -70,14 +94,17 @@ class SlackBot():
         for channel in channels:
             self.channels_list[ channel[ 'id' ] ] = SlackChannel( channel[ 'id' ], channel[ 'name' ] )
 
+    def resolve_channel_id_from_name( self, name ):
+        pass
+
     # plugin commands
 
-    def send_message( self, channel, message ):
-        self.sc.api_call( "chat.postMessage", channel = channel, text = message, as_user = True )
+    def send_message( self, channel, message, attachments_json = None ):
+        self.sc.api_call( "chat.postMessage", channel = channel.id, text = message, as_user = True, attachments = attachments_json )
 
-    def send_mention_message( self, channel, user, message ):
+    def send_mention_message( self, channel, user, message, attachments_json = None ):
         mention_message = "<@" + user.id + "> " + message
-        self.sc.api_call( "chat.postMessage", channel = channel, text = mention_message, as_user = True )
+        self.sc.api_call( "chat.postMessage", channel = channel.id, text = mention_message, as_user = True, attachments = attachments_json )
 
     # plugin events
 
@@ -154,10 +181,10 @@ class SlackBot():
             time.sleep( self.rtm_interval )
 
     def start( self ):
-        self.load_plugins()
         if self.sc.rtm_connect():
             self.update_users_list()
             self.update_channels_list()
+            self.load_plugins()
             self.on_server_connect()
             self.rtm_read_loop()
         else:

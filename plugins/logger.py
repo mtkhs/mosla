@@ -5,11 +5,10 @@ from datetime import datetime
 
 class Logger( SlackPlugin ):
 
-    def __init__( self, bot, klass_name ):
-        super( Logger, self ).__init__( bot, klass_name )
-        self.log_dir_path = "log"
-        if not os.path.exists( self.log_dir_path ):
-            os.mkdir( self.log_dir_path )
+    def bot_construct( self ):
+        self.log_dir = self.setting[ 'log_dir' ]
+        if not os.path.exists( self.log_dir ):
+            os.mkdir( self.log_dir )
 
     def create_filename( self, channel ):
         return "_#" + channel.name + "-" + datetime.now().strftime( "%Y%m%d" ) + ".log"
@@ -67,7 +66,7 @@ class Logger( SlackPlugin ):
         return text
 
     def put_log( self, log_filename, text ):
-        with open( self.log_dir_path + "/" + log_filename, "a", encoding="utf-8" ) as log_file:
+        with open( self.log_dir + "/" + log_filename, "a", encoding="utf-8" ) as log_file:
             log_file.write( text + "\n" )
 
     def download_attachment_file( self ):

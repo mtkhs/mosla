@@ -1,9 +1,19 @@
 
 class SlackPlugin():
 
-    def __init__( self, bot, name ):
+    def __init__( self, bot, setting ):
         self.bot = bot
-        self.name = name
+        self.setting = setting
+        self.bot_construct()
+
+    def __del__( self ):
+        self.bot_destruct()
+
+    def bot_construct( self ):
+        pass
+
+    def bot_destruct( self ):
+        pass
 
     def is_mention_to_me( self, message ):
         return message.startswith( "<@" + self.bot.self_id() + ">" )

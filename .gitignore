@@ -1,4 +1,5 @@
 settings.toml
+kishou_last_event_id
 /log/*
 !/log/.gitkeep
 
