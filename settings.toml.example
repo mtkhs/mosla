@@ -15,13 +15,3 @@ module = 'plugins.pingPong'
 name = 'PingPong'
 ping_text = 'Ping!'
 pong_text = 'Pong!!!'
-
-[[plugins]]
-module = 'plugins.docomoNaturalChatting'
-name = 'DocomoNaturalChatting'
-api_key = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-
-[[plugins]]
-module = 'plugins.earthquake'
-name = 'Earthquake'
-channel_id = 'C00000000'
