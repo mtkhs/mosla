@@ -15,3 +15,7 @@ module = 'plugins.pingPong'
 name = 'PingPong'
 ping_text = 'Ping!'
 pong_text = 'Pong!!!'
+
+[[plugins]]
+module = 'plugins.welcome'
+name = 'Welcome'

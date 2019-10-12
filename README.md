@@ -2,6 +2,7 @@
 
 * Written in Python.
 * Easy to create your plugin with Python.
+* slackclient v1.3.1.
 
 ## How to start
 
@@ -23,4 +24,5 @@
 
 ## TODO
 
-* .
+* Migrate to slackclient v2.*
+

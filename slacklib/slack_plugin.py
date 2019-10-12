@@ -1,3 +1,4 @@
+import re
 
 class SlackPlugin():
 
@@ -22,7 +23,7 @@ class SlackPlugin():
         return message.startswith( "<@" )
 
     def parse_mention_text( self, text ):
-        user, message = text.split( " ", 1 )
+        user, message = re.split( "(?<=\>)", text, 1 )
         user = self.bot.users_list[ user[ 2 : -1 ] ]
         return ( user, message )
 
@@ -31,6 +32,9 @@ class SlackPlugin():
 
     def send_mention_message( self, channel, user, message ):
         self.bot.send_mention_message( channel, user, message )
+
+    def send_kick( self, channel, user ):
+        self.bot.send_kick( channel, user )
 
     # abstract methods
 

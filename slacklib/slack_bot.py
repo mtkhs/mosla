@@ -106,7 +106,10 @@ class SlackBot():
         mention_message = "<@" + user.id + "> " + message
         self.sc.api_call( "chat.postMessage", channel = channel.id, text = mention_message, as_user = True, attachments = attachments_json )
 
-    # plugin events
+    def send_kick( self, channel, user ):
+        self.sc.api_call( "channels.kick", channel = channel.id, user = user.id )
+
+     # plugin events
 
     def on_message( self, user, channel, message ):
         for plugin in self.plugin_instances:
