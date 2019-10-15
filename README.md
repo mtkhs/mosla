@@ -1,8 +1,9 @@
 # Mosla: Slack Bot program
 
-* Written in Python.
+* Written in Python3.
 * Easy to create your plugin with Python.
-* slackclient v1.3.1.
+* slackclient v2.* .
+* You need to get both API token `xoxp` for transmit actively and `xoxb` for RTM connection.
 
 ## How to start
 
@@ -12,7 +13,7 @@
     $ cd mosla
     $ pip install -r requirements.txt
 ```
-2. Create and edit the setting file. Especially 'api_token'.
+2. Create and edit the setting file.
 ```
     $ cp settings.toml{.example,}
     $ vim settings.toml
@@ -21,8 +22,4 @@
 ```
     $ python mosla.py
 ```
-
-## TODO
-
-* Migrate to slackclient v2.*
 
