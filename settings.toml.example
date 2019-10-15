@@ -1,8 +1,8 @@
 [slack]
-api_token = "xxxx-000000000000000000000000000000000000"
+xoxp_token = "xoxp-xxxxxxxxxxxx-xxxxxxxxxxxx-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+xoxb_token = "xoxb-xxxxxxxxxxxx-xxxxxxxxxxxx-xxxxxxxxxxxx-xxxxxxxxxxx"
 
 [bot]
-rtm_interval = 1
 plugins_dir = "plugins"
 
 [[plugins]]
@@ -19,3 +19,7 @@ pong_text = 'Pong!!!'
 [[plugins]]
 module = 'plugins.welcome'
 name = 'Welcome'
+
+[[plugins]]
+module = 'plugins.kicker'
+name = 'Kicker'

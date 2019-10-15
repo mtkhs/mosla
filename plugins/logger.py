@@ -16,7 +16,7 @@ class Logger( SlackPlugin ):
     def create_timestamp( self ):
         return datetime.now().strftime( "%Y/%m/%d %H:%M:%S" )
 
-    def create_log_line( self, user, channel, message ):
+    def create_log_line( self, channel, user, message ):
         timestamp = self.create_timestamp()
         line = timestamp + " #" + channel.name + " " + user.name + " > " + self.normalize_text( message )
         return line
@@ -36,7 +36,7 @@ class Logger( SlackPlugin ):
     def normalize_user( self, text ):
         mention_pattern = re.compile( r'<@([UW][0-9A-Z]{8})>' )
         for match in mention_pattern.finditer( text ):
-            user = self.bot.users_list[ match.group( 1 ) ]
+            user = self.bot._users_list[ match.group( 1 ) ]
             text = text.replace( match.group( 0 ), "@" + user.name )
         return text
 
@@ -72,7 +72,7 @@ class Logger( SlackPlugin ):
     def download_attachment_file( self ):
         pass
 
-    def on_message( self, user, channel, message ):
-        line = self.create_log_line( user, channel, message )
+    def on_message( self, channel, user, message ):
+        line = self.create_log_line( channel, user, message )
         log_filename = self.create_filename( channel )
         self.put_log( log_filename, line )
