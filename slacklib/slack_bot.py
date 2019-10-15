@@ -1,6 +1,5 @@
 import os
 import importlib
-from slackclient import SlackClient
 import time
 from slacklib import SlackUser
 from slacklib import SlackPlugin
@@ -9,20 +8,35 @@ from slacklib import SlackChannel
 class SlackBot():
 
     def __init__( self, setting ):
-        token = setting[ 'slack' ][ 'api_token' ]
-        plugins_path = setting[ 'bot' ][ 'plugins_dir' ]
-        rtm_interval = setting[ 'bot' ][ 'rtm_interval' ]
-        plugins_setting = setting[ 'plugins' ]
-
-        self.plugins_setting = plugins_setting
-        self.sc = SlackClient( token )
-        self.plugins_path = plugins_path
-        self.rtm_interval = rtm_interval
+        self._rtm_client = None
+        self._web_client = None
+        self.plugins_setting = setting[ 'plugins' ]
+        self.plugins_path = setting[ 'bot' ][ 'plugins_dir' ]
+        self.rtm_interval = 1
         self.plugin_modules = []
         self.plugin_classes = []
         self.plugin_instances = []
-        self.users_list = {} # [ 'id' ] => SlackUser
-        self.channels_list = {}
+        self._self = None
+        self._team = None
+        self._users_list = {} # [ 'id' ] => SlackUser
+        self._channels_list = {}
+        self._data = None
+
+    def _get_rtm_client( self ):
+        return self._rtm_client
+
+    def _set_rtm_client( self, rc ):
+        self._rtm_client = rc
+
+    rtm_client = property( _get_rtm_client, _set_rtm_client )
+
+    def _get_web_client( self ):
+        return self._web_client
+
+    def _set_web_client( self, rc ):
+        self._web_client = rc
+
+    web_client = property( _get_web_client, _set_web_client )
 
     # plugin loader
 
@@ -76,7 +90,7 @@ class SlackBot():
     # bot information
 
     def self_info( self ):
-        return self.sc.server.login_data[ 'self' ]
+        return self._self
 
     def self_id( self ):
         return self.self_info()[ 'id' ]
@@ -84,15 +98,28 @@ class SlackBot():
     def self_name( self ):
         return self.self_info()[ 'name' ]
 
-    def update_users_list( self ):
-        users = self.sc.server.login_data[ 'users' ]
-        for user in users:
-            self.users_list[ user[ 'id' ] ] = SlackUser( user[ 'id' ], user[ 'name' ], user[ 'real_name' ], user[ 'profile' ][ 'email' ] )
+    def team_info( self ):
+        return self._team
 
-    def update_channels_list( self ):
-        channels = self.sc.server.login_data[ 'channels' ]
+    def team_id( self ):
+        return self.team_info()[ 'id' ]
+
+    def team_name( self ):
+        return self.team_info()[ 'name' ]
+
+    def update_self_info( self, info ):
+        self._self = info
+
+    def update_team_info( self, info ):
+        self._team = info
+
+    def update_users_list( self, users ):
+        for user in users:
+            self._users_list[ user[ 'id' ] ] = SlackUser( user )
+
+    def update_channels_list( self, channels ):
         for channel in channels:
-            self.channels_list[ channel[ 'id' ] ] = SlackChannel( channel[ 'id' ], channel[ 'name' ] )
+            self._channels_list[ channel[ 'id' ] ] = SlackChannel( channel )
 
     def resolve_channel_id_from_name( self, name ):
         pass
@@ -100,95 +127,68 @@ class SlackBot():
     # plugin commands
 
     def send_message( self, channel, message, attachments_json = None ):
-        self.sc.api_call( "chat.postMessage", channel = channel.id, text = message, as_user = True, attachments = attachments_json )
+        self._web_client.chat_postMessage( channel = channel.id, text = message, as_user = True, attachments = attachments_json )
 
     def send_mention_message( self, channel, user, message, attachments_json = None ):
         mention_message = "<@" + user.id + "> " + message
-        self.sc.api_call( "chat.postMessage", channel = channel.id, text = mention_message, as_user = True, attachments = attachments_json )
+        self._web_client.chat_postMessage( channel = channel.id, text = mention_message, as_user = True, attachments = attachments_json )
 
     def send_kick( self, channel, user ):
-        self.sc.api_call( "channels.kick", channel = channel.id, user = user.id )
+        self._web_client.channels_kick( channel = channel.id, user = user.id )
 
-     # plugin events
-
-    def on_message( self, user, channel, message ):
-        for plugin in self.plugin_instances:
-            plugin.on_message( user, channel, message )
-
-    def on_message_changed( self, channel, user, message, prev_user, prev_message ):
-        for plugin in self.plugin_instances:
-            plugin.on_message_changed( channel, user, message, prev_user, prev_message )
-
-    def on_joined( self, channel, user ):
-        for plugin in self.plugin_instances:
-            plugin.on_joined( channel, user )
-
-    def on_left( self, channel, user ):
-        for plugin in self.plugin_instances:
-            plugin.on_left( channel, user )
+    # plugin events
 
     def on_server_connect( self ):
         for plugin in self.plugin_instances:
             plugin.on_server_connect()
 
-    def on_raw( self, line ):
-        for plugin in self.plugin_instances:
-            plugin.on_raw( line )
+    def on_open( self, payload ):
+        self.update_self_info( payload[ 'data' ][ 'self' ] )
+        self.update_team_info( payload[ 'data' ][ 'team' ] )
+        self.update_users_list( payload[ 'data' ][ 'users' ] )
+        self.update_channels_list( payload[ 'data' ][ 'channels' ] )
+        self.load_plugins()
+        self.on_server_connect()
 
-    # process slack events
-
-    def process_message_changed( self, item ):
-        channel = self.channels_list[ item[ 'channel' ] ]
-        user = self.users_list[ item[ 'message' ][ 'user' ] ]
-        message = item[ 'message' ][ 'text' ]
-        prev_user = item[ 'previous_message' ][ 'user' ]
-        prev_message = item[ 'previous_message' ][ 'text' ]
-#        if user.id != self.self_id(): # ignore own message
-        self.on_message_changed( channel, user, message, prev_user, prev_message )
-
-    def process_message( self, item ):
-        if 'subtype' in item:
-            if item[ 'subtype' ] == 'message_changed':
-                self.process_message_changed( item )
+    def on_message( self, payload ):
+        data = payload[ 'data' ]
+        if 'subtype' in data:
+            if data[ 'subtype' ] == 'message_changed':
+                self.process_message_changed( data )
         else:
-            user = self.users_list[ item[ 'user' ] ]
-            channel = self.channels_list[ item[ 'channel' ] ]
-            message = item[ 'text' ]
-#            if user.id != self.self_id(): # ignore own message
-            self.on_message( user, channel, message )
+            self.process_message( data )
+    
+    def process_message( self, data ):
+        channel = self._channels_list[ data[ 'channel' ] ]
+        user = self._users_list[ data[ 'user' ] ]
+        text = data[ 'text' ]
+#        if user.id != self.self_id(): # ignore own message
+        for plugin in self.plugin_instances:
+            plugin.on_message( channel, user, text )
 
-    def process_item( self, item ):
-        if item[ 'type' ] == 'message':
-            self.process_message( item )
-        elif item[ 'type' ] == 'member_joined_channel':
-            user = self.users_list[ item[ 'user' ] ]
-            channel = self.channels_list[ item[ 'channel' ] ]
-            self.on_joined( channel, user )
-        elif item[ 'type' ] == 'member_left_channel':
-            user = self.users_list[ item[ 'user' ] ]
-            channel = self.channels_list[ item[ 'channel' ] ]
-            self.on_left( channel, user )
+    def process_message_changed( self, data ):
+        channel = self._channels_list[ data[ 'channel' ] ]
+        user = self._users_list[ data[ 'message' ][ 'user' ] ]
+        text = data[ 'message' ][ 'text' ]
+        prev_user = data[ 'previous_message' ][ 'user' ]
+        prev_text = data[ 'previous_message' ][ 'text' ]
+#        if user.id != self.self_id(): # ignore own message
+        for plugin in self.plugin_instances:
+            plugin.on_message_changed( channel, user, text, prev_user, prev_text )
 
-    def process_line( self, line ):
-        for item in line:
-            self.process_item( item )
+    def on_channel_joined( self, payload ):
+        channel = self._channels_list[ payload[ 'data' ][ 'channel' ] ]
+        user = self._users_list[ payload[ 'data' ][ 'user' ] ]
+        for plugin in self.plugin_instances:
+            plugin.on_joined( channel, user )
+
+    def on_channel_left( self, payload ):
+        channel = self._channels_list[ payload[ 'data' ][ 'channel' ] ]
+        user = self._users_list[ payload[ 'data' ][ 'user' ] ]
+        for plugin in self.plugin_instances:
+            plugin.on_left( channel, user )
 
     # process slack rtm
 
-    def rtm_read_loop( self ):
-        while self.sc.server.connected:
-            line = self.sc.rtm_read()
-            if 0 < len( line ):
-                self.process_line( line )
-                self.on_raw( line )
-            time.sleep( self.rtm_interval )
-
     def start( self ):
-        if self.sc.rtm_connect():
-            self.update_users_list()
-            self.update_channels_list()
-            self.load_plugins()
-            self.on_server_connect()
-            self.rtm_read_loop()
-        else:
-            print( "Connection Failed" )
+        self._rtm_client.start()

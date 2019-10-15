@@ -6,7 +6,7 @@ class PingPong( SlackPlugin ):
         self.ping_text = self.setting[ 'ping_text' ]
         self.pong_text = self.setting[ 'pong_text' ]
 
-    def on_message( self, user, channel, message ):
+    def on_message( self, channel, user, message ):
         if user.id == self.bot.self_id(): # ignore own message
             return
         if self.is_mention_to_me( message ):

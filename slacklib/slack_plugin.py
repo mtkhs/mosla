@@ -41,7 +41,7 @@ class SlackPlugin():
     def on_server_connect( self ):
         pass
 
-    def on_message( self, user, channel, message ):
+    def on_message( self, channel, user, message ):
         pass
 
     def on_message_changed( self, channel, user, message, prev_user, prev_message ):

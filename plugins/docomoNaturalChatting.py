@@ -25,7 +25,7 @@ class DocomoNaturalChatting( SlackPlugin ):
         data = r.json()
         self.app_id = data[ 'appId' ]
 
-    def on_message( self, user, channel, message ):
+    def on_message( self, channel, user, message ):
         if self.is_mention_to_me( message ):
             to_user, message = self.parse_mention_text( message )
             reply = self.get_reply( message )
