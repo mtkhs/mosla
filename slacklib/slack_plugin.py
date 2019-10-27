@@ -24,8 +24,8 @@ class SlackPlugin():
 
     def parse_mention_text( self, text ):
         user, message = re.split( "(?<=\>)", text, 1 )
-        user = self.bot.users_list[ user[ 2 : -1 ] ]
-        return ( user, message )
+        user = self.bot._users_list[ user[ 2 : -1 ] ]
+        return ( user, message.lstrip() )
 
     def send_message( self, channel, message ):
         self.bot.send_message( channel, message )

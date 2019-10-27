@@ -1,6 +1,8 @@
 import os
 import importlib
 import time
+import slack
+import asyncio
 from slacklib import SlackUser
 from slacklib import SlackPlugin
 from slacklib import SlackChannel
@@ -8,11 +10,15 @@ from slacklib import SlackChannel
 class SlackBot():
 
     def __init__( self, setting ):
-        self._rtm_client = None
-        self._web_client = None
+        xoxp_token = setting[ 'slack' ][ 'xoxp_token' ]
+        xoxb_token = setting[ 'slack' ][ 'xoxb_token' ]
+        self._web_client = slack.WebClient( token = xoxp_token )
+        self._rtm_client = slack.RTMClient( token = xoxb_token, connect_method = 'rtm.start' )
+#        self._rtm_loop = asyncio.new_event_loop()
+#        asyncio.set_event_loop( self._rtm_loop )
+#        self._rtm_client = slack.RTMClient( token = xoxb_token, connect_method = 'rtm.start', run_async = True, loop = self._rtm_loop )
         self.plugins_setting = setting[ 'plugins' ]
         self.plugins_path = setting[ 'bot' ][ 'plugins_dir' ]
-        self.rtm_interval = 1
         self.plugin_modules = []
         self.plugin_classes = []
         self.plugin_instances = []
@@ -127,11 +133,11 @@ class SlackBot():
     # plugin commands
 
     def send_message( self, channel, message, attachments_json = None ):
-        self._web_client.chat_postMessage( channel = channel.id, text = message, as_user = True, attachments = attachments_json )
+        self._web_client.chat_postMessage( channel = channel.id, text = message, as_user = False, attachments = attachments_json )
 
     def send_mention_message( self, channel, user, message, attachments_json = None ):
         mention_message = "<@" + user.id + "> " + message
-        self._web_client.chat_postMessage( channel = channel.id, text = mention_message, as_user = True, attachments = attachments_json )
+        self._web_client.chat_postMessage( channel = channel.id, text = mention_message, as_user = False, attachments = attachments_json )
 
     def send_kick( self, channel, user ):
         self._web_client.channels_kick( channel = channel.id, user = user.id )
@@ -142,22 +148,6 @@ class SlackBot():
         for plugin in self.plugin_instances:
             plugin.on_server_connect()
 
-    def on_open( self, payload ):
-        self.update_self_info( payload[ 'data' ][ 'self' ] )
-        self.update_team_info( payload[ 'data' ][ 'team' ] )
-        self.update_users_list( payload[ 'data' ][ 'users' ] )
-        self.update_channels_list( payload[ 'data' ][ 'channels' ] )
-        self.load_plugins()
-        self.on_server_connect()
-
-    def on_message( self, payload ):
-        data = payload[ 'data' ]
-        if 'subtype' in data:
-            if data[ 'subtype' ] == 'message_changed':
-                self.process_message_changed( data )
-        else:
-            self.process_message( data )
-    
     def process_message( self, data ):
         channel = self._channels_list[ data[ 'channel' ] ]
         user = self._users_list[ data[ 'user' ] ]
@@ -176,19 +166,44 @@ class SlackBot():
         for plugin in self.plugin_instances:
             plugin.on_message_changed( channel, user, text, prev_user, prev_text )
 
-    def on_channel_joined( self, payload ):
-        channel = self._channels_list[ payload[ 'data' ][ 'channel' ] ]
-        user = self._users_list[ payload[ 'data' ][ 'user' ] ]
+    def on_open( self, **payload ):
+        self.update_self_info( payload[ 'data' ][ 'self' ] )
+        self.update_team_info( payload[ 'data' ][ 'team' ] )
+        self.update_users_list( payload[ 'data' ][ 'users' ] )
+        self.update_channels_list( payload[ 'data' ][ 'channels' ] )
+        self.load_plugins()
+        self.on_server_connect()
+
+    def on_message( self, **payload ):
+        data = payload[ 'data' ]
+        if 'bot_id' in data:
+            return
+        if 'subtype' in data:
+            if data[ 'subtype' ] == 'message_changed':
+                self.process_message_changed( data )
+        else:
+            self.process_message( data )
+
+    def on_channel_joined( self, **payload ):
+        data = payload[ 'data' ]
+        channel = self._channels_list[ data[ 'channel' ] ]
+        user = self._users_list[ data[ 'user' ] ]
         for plugin in self.plugin_instances:
             plugin.on_joined( channel, user )
 
-    def on_channel_left( self, payload ):
-        channel = self._channels_list[ payload[ 'data' ][ 'channel' ] ]
-        user = self._users_list[ payload[ 'data' ][ 'user' ] ]
+    def on_channel_left( self, **payload ):
+        data = payload[ 'data' ]
+        channel = self._channels_list[ data[ 'channel' ] ]
+        user = self._users_list[ data[ 'user' ] ]
         for plugin in self.plugin_instances:
             plugin.on_left( channel, user )
 
     # process slack rtm
 
     def start( self ):
+        self._rtm_client.on( event = 'open', callback = self.on_open )
+        self._rtm_client.on( event = 'message', callback = self.on_message )
+        self._rtm_client.on( event = 'member_joined_channel', callback = self.on_channel_joined )
+        self._rtm_client.on( event = 'member_left_channel', callback = self.on_channel_left )
         self._rtm_client.start()
+#        self._rtm_loop.run_until_complete( self._rtm_client.start() )

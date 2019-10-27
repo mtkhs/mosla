@@ -2,8 +2,9 @@
 
 * Written in Python3.
 * Easy to create your plugin with Python.
-* slackclient v2.* .
+* slackclient v2.2.1 .
 * You need to get both API token `xoxp` for transmit actively and `xoxb` for RTM connection.
+  * https://api.slack.com/apps
 
 ## How to start
 
@@ -15,8 +16,8 @@
 ```
 2. Create and edit the setting file.
 ```
-    $ cp settings.toml{.example,}
-    $ vim settings.toml
+    $ cp setting.toml{.example,}
+    $ vim setting.toml
 ```
 3. Run mosla.
 ```
