@@ -1,0 +1,25 @@
+[slack]
+xoxp_token = "xoxp-xxxxxxxxxxxx-xxxxxxxxxxxx-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+xoxb_token = "xoxb-xxxxxxxxxxxx-xxxxxxxxxxxx-xxxxxxxxxxxx-xxxxxxxxxxx"
+
+[bot]
+plugins_dir = "plugins"
+
+[[plugins]]
+module = 'plugins.logger'
+name = 'Logger'
+log_dir = 'log'
+
+[[plugins]]
+module = 'plugins.pingPong'
+name = 'PingPong'
+ping_text = 'Ping!'
+pong_text = 'Pong!!!'
+
+[[plugins]]
+module = 'plugins.welcome'
+name = 'Welcome'
+
+[[plugins]]
+module = 'plugins.kicker'
+name = 'Kicker'
