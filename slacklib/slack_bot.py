@@ -6,6 +6,8 @@ import asyncio
 from slacklib import SlackUser
 from slacklib import SlackPlugin
 from slacklib import SlackChannel
+from slacklib import SlackGroup
+from slacklib import SlackIM
 
 class SlackBot():
 
@@ -56,7 +58,7 @@ class SlackBot():
 
     def load_plugins_filename_based( self ):
         plugins_dir = os.listdir( self.plugins_path )
-        current_dir = os.path.dirname( os.path.abspath( __file__ ) )
+#        current_dir = os.path.dirname( os.path.abspath( __file__ ) )
         for filename in plugins_dir:
             if filename.endswith('.py'):
                 if filename == "__init__.py":
@@ -123,6 +125,14 @@ class SlackBot():
         for user in users:
             self._users_list[ user[ 'id' ] ] = SlackUser( user )
 
+    def update_groups_list( self, groups ):
+        for group in groups:
+            self._channels_list[ group[ 'id' ] ] = SlackGroup( group )
+
+    def update_ims_list( self, ims ):
+        for im in ims:
+            self._channels_list[ im[ 'id' ] ] = SlackIM( im )
+
     def update_channels_list( self, channels ):
         for channel in channels:
             self._channels_list[ channel[ 'id' ] ] = SlackChannel( channel )
@@ -171,6 +181,8 @@ class SlackBot():
         self.update_team_info( payload[ 'data' ][ 'team' ] )
         self.update_users_list( payload[ 'data' ][ 'users' ] )
         self.update_channels_list( payload[ 'data' ][ 'channels' ] )
+        self.update_groups_list( payload[ 'data' ][ 'groups' ] )
+        self.update_ims_list( payload[ 'data' ][ 'ims' ] )
         self.load_plugins()
         self.on_server_connect()
 

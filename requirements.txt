@@ -1,2 +1,2 @@
-slackclient==2.2.1
+slackclient==2.5.0
 toml==0.10.0

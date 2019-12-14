@@ -10,15 +10,23 @@ class Logger( SlackPlugin ):
         if not os.path.exists( self.log_dir ):
             os.mkdir( self.log_dir )
 
-    def create_filename( self, channel ):
+    def create_channel_filename( self, channel ):
         return "_#" + channel.name + "-" + datetime.now().strftime( "%Y%m%d" ) + ".log"
+
+    def create_im_filename( self, channel ):
+        return "_" + channel.user + "-" + datetime.now().strftime( "%Y%m%d" ) + ".log"
 
     def create_timestamp( self ):
         return datetime.now().strftime( "%Y/%m/%d %H:%M:%S" )
 
-    def create_log_line( self, channel, user, message ):
+    def create_channel_line( self, channel, user, message ):
         timestamp = self.create_timestamp()
         line = timestamp + " #" + channel.name + " " + user.name + " > " + self.normalize_text( message )
+        return line
+
+    def create_im_line( self, channel, user, message ):
+        timestamp = self.create_timestamp()
+        line = timestamp + " " + channel.user + " " + user.name + " > " + self.normalize_text( message )
         return line
 
     def normalize_date( self, text ):
@@ -73,6 +81,13 @@ class Logger( SlackPlugin ):
         pass
 
     def on_message( self, channel, user, message ):
-        line = self.create_log_line( channel, user, message )
-        log_filename = self.create_filename( channel )
-        self.put_log( log_filename, line )
+        if channel.is_channel():
+            line = self.create_channel_line( channel, user, message )
+            filename = self.create_channel_filename( channel )
+            self.put_log( filename, line )
+        elif channel.is_group():
+            pass
+        elif channel.is_im():
+            line = self.create_im_line( channel, user, message )
+            filename = self.create_im_filename( channel )
+            self.put_log( filename, line )
