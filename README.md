@@ -2,7 +2,7 @@
 
 * Written in Python3.
 * Easy to create your plugin with Python.
-* slackclient v2.2.1 .
+* slackclient v2.5.0 .
 * You need to get both API token `xoxp` for transmit actively and `xoxb` for RTM connection.
   * https://api.slack.com/apps
 
