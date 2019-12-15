@@ -204,6 +204,9 @@ class SlackBot():
     def on_channel_left( self, **payload ):
         data = payload[ 'data' ]
         del self._channels_list[ data[ 'channel' ] ]
+        # TODO: It should be not delete the channel and It must be update the status such as a 'is_member'.
+        # self._channels_list[ data[ 'channel' ] ].is_member = False
+
 
     def on_member_joined_channel( self, **payload ):
         data = payload[ 'data' ]
