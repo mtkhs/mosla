@@ -198,12 +198,21 @@ class SlackBot():
 
     def on_channel_joined( self, **payload ):
         data = payload[ 'data' ]
+        channel = data[ 'channel' ]
+        self._channels_list[ channel[ 'id' ] ] = SlackChannel( channel )
+
+    def on_channel_left( self, **payload ):
+        data = payload[ 'data' ]
+        del self._channels_list[ data[ 'channel' ] ]
+
+    def on_member_joined_channel( self, **payload ):
+        data = payload[ 'data' ]
         channel = self._channels_list[ data[ 'channel' ] ]
         user = self._users_list[ data[ 'user' ] ]
         for plugin in self.plugin_instances:
             plugin.on_joined( channel, user )
 
-    def on_channel_left( self, **payload ):
+    def on_member_left_channel( self, **payload ):
         data = payload[ 'data' ]
         channel = self._channels_list[ data[ 'channel' ] ]
         user = self._users_list[ data[ 'user' ] ]
@@ -215,7 +224,9 @@ class SlackBot():
     def start( self ):
         self._rtm_client.on( event = 'open', callback = self.on_open )
         self._rtm_client.on( event = 'message', callback = self.on_message )
-        self._rtm_client.on( event = 'member_joined_channel', callback = self.on_channel_joined )
-        self._rtm_client.on( event = 'member_left_channel', callback = self.on_channel_left )
+        self._rtm_client.on( event = 'channel_joined', callback = self.on_channel_joined )
+        self._rtm_client.on( event = 'channel_left', callback = self.on_channel_left )
+        self._rtm_client.on( event = 'member_joined_channel', callback = self.on_member_joined_channel )
+        self._rtm_client.on( event = 'member_left_channel', callback = self.on_member_left_channel )
         self._rtm_client.start()
 #        self._rtm_loop.run_until_complete( self._rtm_client.start() )
