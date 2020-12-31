@@ -2,8 +2,8 @@
 
 * Written in Python3.
 * Easy to create your plugin with Python.
-* slackclient v3.1.0
-* You need to create a **Classic Slack App** and **add a legacy bot user** scope.
+* [slack_sdk](https://github.com/slackapi/python-slack-sdk) v3.1.0
+* You need to **create a Classic Slack App** and **add a legacy bot user** scope.
   * https://api.slack.com/apps?new_classic_app=1
 * You need to get both API token `xoxp` for transmit actively and `xoxb` for RTM connection.
 
