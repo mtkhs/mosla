@@ -6,9 +6,8 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
-slackclient = "*"
-toml = "*"
-certifi = "*"
+slack_sdk = "==3.1.0"
+toml = "==0.10.0"
 
 [requires]
-python_version = "3.7"
+python_version = "3.8"

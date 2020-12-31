@@ -1,24 +1,26 @@
 import os
 import importlib
 import time
-import slack
+#import logging
+#logging.basicConfig(level=logging.DEBUG)
+import slack_sdk
 import asyncio
 from slacklib import SlackUser
 from slacklib import SlackPlugin
 from slacklib import SlackChannel
 from slacklib import SlackGroup
 from slacklib import SlackIM
+from slack_sdk.rtm import RTMClient
+from slack_sdk.web.legacy_client import LegacyWebClient as WebClient
+from slack_sdk.errors import SlackApiError
 
 class SlackBot():
 
     def __init__( self, setting ):
         xoxp_token = setting[ 'slack' ][ 'xoxp_token' ]
         xoxb_token = setting[ 'slack' ][ 'xoxb_token' ]
-        self._web_client = slack.WebClient( token = xoxp_token )
-        self._rtm_client = slack.RTMClient( token = xoxb_token, connect_method = 'rtm.start' )
-#        self._rtm_loop = asyncio.new_event_loop()
-#        asyncio.set_event_loop( self._rtm_loop )
-#        self._rtm_client = slack.RTMClient( token = xoxb_token, connect_method = 'rtm.start', run_async = True, loop = self._rtm_loop )
+        self._web_client = WebClient( token = xoxp_token )
+        self._rtm_client = RTMClient( token = xoxb_token, connect_method = 'rtm.start' )
         self.plugins_setting = setting[ 'plugins' ]
         self.plugins_path = setting[ 'bot' ][ 'plugins_dir' ]
         self.plugin_modules = []
@@ -206,7 +208,6 @@ class SlackBot():
         del self._channels_list[ data[ 'channel' ] ]
         # TODO: It should be not delete the channel and It must be update the status such as a 'is_member'.
         # self._channels_list[ data[ 'channel' ] ].is_member = False
-
 
     def on_member_joined_channel( self, **payload ):
         data = payload[ 'data' ]
