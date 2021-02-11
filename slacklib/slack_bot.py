@@ -1,8 +1,6 @@
 import os
 import importlib
 import time
-#import logging
-#logging.basicConfig(level=logging.DEBUG)
 import slack_sdk
 import asyncio
 from slacklib import SlackUser
@@ -10,17 +8,19 @@ from slacklib import SlackPlugin
 from slacklib import SlackChannel
 from slacklib import SlackGroup
 from slacklib import SlackIM
-from slack_sdk.rtm import RTMClient
-from slack_sdk.web.legacy_client import LegacyWebClient as WebClient
+from slack_sdk.web import WebClient
+from slack_sdk.socket_mode import SocketModeClient
+from slack_sdk.socket_mode.response import SocketModeResponse
+from slack_sdk.socket_mode.request import SocketModeRequest
 from slack_sdk.errors import SlackApiError
 
 class SlackBot():
 
     def __init__( self, setting ):
-        xoxp_token = setting[ 'slack' ][ 'xoxp_token' ]
         xoxb_token = setting[ 'slack' ][ 'xoxb_token' ]
-        self._web_client = WebClient( token = xoxp_token )
-        self._rtm_client = RTMClient( token = xoxb_token, connect_method = 'rtm.start' )
+        xapp_token = setting[ 'slack' ][ 'xapp_token' ]
+        self._web_client = WebClient( token = xoxb_token )
+        self._sm_client = SocketModeClient( app_token = xapp_token, web_client = self._web_client )
         self.plugins_setting = setting[ 'plugins' ]
         self.plugins_path = setting[ 'bot' ][ 'plugins_dir' ]
         self.plugin_modules = []
@@ -99,14 +99,15 @@ class SlackBot():
 
     # bot information
 
-    def self_info( self ):
+    def self_user( self ):
         return self._self
 
     def self_id( self ):
-        return self.self_info()[ 'id' ]
+        u = self.self_user()
+        return u.id
 
     def self_name( self ):
-        return self.self_info()[ 'name' ]
+        return self.self_user().name
 
     def team_info( self ):
         return self._team
@@ -117,8 +118,8 @@ class SlackBot():
     def team_name( self ):
         return self.team_info()[ 'name' ]
 
-    def update_self_info( self, info ):
-        self._self = info
+    def update_self_user( self, user ):
+        self._self = user
 
     def update_team_info( self, info ):
         self._team = info
@@ -145,11 +146,12 @@ class SlackBot():
     # plugin commands
 
     def send_message( self, channel, message, attachments_json = None ):
-        self._web_client.chat_postMessage( channel = channel.id, text = message, as_user = False, attachments = attachments_json )
+        self._web_client.chat_postMessage( channel = channel.id, text = message, attachments = attachments_json )
 
     def send_mention_message( self, channel, user, message, attachments_json = None ):
         mention_message = "<@" + user.id + "> " + message
-        self._web_client.chat_postMessage( channel = channel.id, text = mention_message, as_user = False, attachments = attachments_json )
+        self._web_client.chat_postMessage( channel = channel.id, text = mention_message,  attachments = attachments_json )
+
 
     def send_kick( self, channel, user ):
         self._web_client.channels_kick( channel = channel.id, user = user.id )
@@ -178,18 +180,8 @@ class SlackBot():
         for plugin in self.plugin_instances:
             plugin.on_message_changed( channel, user, text, prev_user, prev_text )
 
-    def on_open( self, **payload ):
-        self.update_self_info( payload[ 'data' ][ 'self' ] )
-        self.update_team_info( payload[ 'data' ][ 'team' ] )
-        self.update_users_list( payload[ 'data' ][ 'users' ] )
-        self.update_channels_list( payload[ 'data' ][ 'channels' ] )
-        self.update_groups_list( payload[ 'data' ][ 'groups' ] )
-        self.update_ims_list( payload[ 'data' ][ 'ims' ] )
-        self.load_plugins()
-        self.on_server_connect()
-
-    def on_message( self, **payload ):
-        data = payload[ 'data' ]
+    def on_message( self, payload ):
+        data = payload
         if 'bot_id' in data:
             return
         if 'subtype' in data:
@@ -199,25 +191,25 @@ class SlackBot():
             self.process_message( data )
 
     def on_channel_joined( self, **payload ):
-        data = payload[ 'data' ]
+        data = payload
         channel = data[ 'channel' ]
         self._channels_list[ channel[ 'id' ] ] = SlackChannel( channel )
 
     def on_channel_left( self, **payload ):
-        data = payload[ 'data' ]
+        data = payload
         del self._channels_list[ data[ 'channel' ] ]
         # TODO: It should be not delete the channel and It must be update the status such as a 'is_member'.
         # self._channels_list[ data[ 'channel' ] ].is_member = False
 
     def on_member_joined_channel( self, **payload ):
-        data = payload[ 'data' ]
+        data = payload
         channel = self._channels_list[ data[ 'channel' ] ]
         user = self._users_list[ data[ 'user' ] ]
         for plugin in self.plugin_instances:
             plugin.on_joined( channel, user )
 
     def on_member_left_channel( self, **payload ):
-        data = payload[ 'data' ]
+        data = payload
         channel = self._channels_list[ data[ 'channel' ] ]
         user = self._users_list[ data[ 'user' ] ]
         for plugin in self.plugin_instances:
@@ -225,12 +217,45 @@ class SlackBot():
 
     # process slack rtm
 
+    def on_socket_mode_request( self, client: SocketModeClient, req: SocketModeRequest ):
+        if req.type == "events_api":
+            # Acknowledge the request anyway
+            response = SocketModeResponse( envelope_id = req.envelope_id )
+            client.send_socket_mode_response( response )
+
+            if req.payload[ 'event' ][ 'type' ] == 'open':
+                self.on_open( req.payload[ 'event' ] )
+            elif req.payload[ 'event' ][ 'type' ] == 'message':
+                self.on_message( req.payload[ 'event' ] )
+            elif req.payload[ 'event' ][ 'type' ] == 'channel_joined':
+                self.on_channel_joined( req.payload[ 'event' ] )
+            elif req.payload[ 'event' ][ 'type' ] == 'channel_left':
+                self.on_channel_left( req.payload[ 'event' ] )
+            elif req.payload[ 'event' ][ 'type' ] == 'member_joined_channel':
+                self.on_member_joined_channel( req.payload[ 'event' ] )
+            elif req.payload[ 'event' ][ 'type' ] == 'member_left_channel':
+                self.on_member_left_channel( req.payload[ 'event' ] )
+
     def start( self ):
-        self._rtm_client.on( event = 'open', callback = self.on_open )
-        self._rtm_client.on( event = 'message', callback = self.on_message )
-        self._rtm_client.on( event = 'channel_joined', callback = self.on_channel_joined )
-        self._rtm_client.on( event = 'channel_left', callback = self.on_channel_left )
-        self._rtm_client.on( event = 'member_joined_channel', callback = self.on_member_joined_channel )
-        self._rtm_client.on( event = 'member_left_channel', callback = self.on_member_left_channel )
-        self._rtm_client.start()
-#        self._rtm_loop.run_until_complete( self._rtm_client.start() )
+        self._sm_client.socket_mode_request_listeners.append( self.on_socket_mode_request )
+        self._sm_client.connect()
+
+        response = self._web_client.users_list()
+        self.update_users_list( response[ 'members' ] )
+
+        response = self._web_client.conversations_list()
+        self.update_channels_list( response[ 'channels' ] )
+
+        response = self._web_client.team_info()
+        self.update_team_info( response[ 'team' ] )
+
+        response = self._web_client.auth_test()
+        self_id = response[ 'user_id' ]
+        self.update_self_user( self._users_list[ self_id ] )
+
+        self.load_plugins()
+        self.on_server_connect()
+
+        from threading import Event
+        Event().wait()
+
